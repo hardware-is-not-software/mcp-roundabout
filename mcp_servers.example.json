@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "taskman-mcp": {
+      "type": "http",
+      "url": "http://localhost:5051/mcp"
+    }
+  }
+}

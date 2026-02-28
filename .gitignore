@@ -1,0 +1,49 @@
+# ===================
+# CONFIDENTIAL DATA - Never commit these
+# ===================
+mcp_results
+
+# Any markdown files in root (might contain notes) - except README
+/*.md
+!README.md
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.*
+secrets.*
+.codex
+
+# ===================
+# Standard ignores
+# ===================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.codex
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
