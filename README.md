@@ -18,6 +18,18 @@ Diagram: one `mcp-roundabout` endpoint routes discovery and tool calls to multip
 - Stores downstream tool call results to files in `mcp_results/`
 - Returns only the result file path from `call_tool`
 
+## SKILL.md
+
+This repo includes a Codex/Claude skill for working with `mcp-roundabout`. Copy it to `~/.claude/skills/mcp-roundabout` or project directory. It is not needed to lauch this repo, you can find the instructions to launch it from this README.md.
+
+- `SKILL.md`
+
+Purpose of the skill:
+
+- Treat `mcp-roundabout` as the primary source of truth for downstream tool discovery
+- Use `list_servers`, `list_tools`, `describe_tool`, `grep_tools`, and `call_tool` instead of assuming downstream tools are directly available
+- Prefer parsing `call_tool` output files with shell tools (`rg`, `grep`, `jq`, `sed`, `awk`) to avoid bloating chat context with raw payloads
+
 ## Requirements
 
 - Python 3.10+
@@ -66,22 +78,6 @@ HTTP downstream server example:
 }
 ```
 
-HTTP server with headers/timeout:
-
-```json
-{
-  "mcpServers": {
-    "private-api": {
-      "url": "https://example.com/mcp",
-      "headers": {
-        "Authorization": "Bearer <token>"
-      },
-      "timeout": 30
-    }
-  }
-}
-```
-
 Optional filters per server:
 
 ```json
@@ -102,6 +98,20 @@ Optional filters per server:
 ```bash
 python3 mcp-roundabout.py
 ```
+
+Start and initialize all configured downstream servers before serving requests:
+
+```bash
+python3 mcp-roundabout.py --start-all-servers
+```
+
+Use a specific config file:
+
+```bash
+python3 mcp-roundabout.py --start-all-servers --config-path /absolute/path/to/mcp_servers.json
+```
+
+`--start-all-servers` fails fast if any downstream server cannot be reached.
 
 Default endpoint:
 

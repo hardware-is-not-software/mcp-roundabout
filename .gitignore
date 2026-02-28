@@ -2,10 +2,12 @@
 # CONFIDENTIAL DATA - Never commit these
 # ===================
 mcp_results
+mcp_servers.json
 
 # Any markdown files in root (might contain notes) - except README
 /*.md
 !README.md
+!SKILL.md
 
 # Environment and secrets
 .env

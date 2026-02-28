@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import argparse
+import asyncio
 import json
 import os
 import fnmatch
@@ -189,6 +191,27 @@ def _to_jsonable(value: Any) -> Any:
     return str(value)
 
 
+def _flatten_exception_messages(exc: BaseException) -> list[str]:
+    messages: list[str] = []
+
+    def visit(err: BaseException) -> None:
+        children = getattr(err, "exceptions", None)
+        if children and isinstance(children, tuple):
+            for child in children:
+                if isinstance(child, BaseException):
+                    visit(child)
+            return
+        text = str(err).strip()
+        if text:
+            messages.append(f"{type(err).__name__}: {text}")
+        else:
+            messages.append(type(err).__name__)
+
+    visit(exc)
+    # Keep order stable while deduplicating.
+    return list(dict.fromkeys(messages))
+
+
 def _store_call_result(
     server: str,
     tool: str,
@@ -223,32 +246,44 @@ async def _open_client(server_name: str, server_cfg: dict[str, Any]):
     stdio_client = MCP_CLIENT["stdio_client"]
     streamable_http_client = MCP_CLIENT["streamable_http_client"]
 
-    if "url" in server_cfg:
-        transport_cm = _call_with_supported_kwargs(
-            streamable_http_client,
-            server_cfg["url"],
-            headers=server_cfg.get("headers"),
-            timeout=server_cfg.get("timeout"),
-        )
-    else:
-        kwargs = {
-            "command": server_cfg["command"],
-            "args": server_cfg.get("args", []),
-            "env": server_cfg.get("env"),
-            "cwd": server_cfg.get("cwd"),
-        }
-        stdio_params = _call_with_supported_kwargs(stdio_params_cls, **kwargs)
-        transport_cm = stdio_client(stdio_params)
-
-    async with transport_cm as transport:
-        if isinstance(transport, tuple):
-            read_stream, write_stream = transport[0], transport[1]
+    transport_label = ""
+    try:
+        if "url" in server_cfg:
+            transport_label = f'http "{server_cfg["url"]}"'
+            transport_cm = _call_with_supported_kwargs(
+                streamable_http_client,
+                server_cfg["url"],
+                headers=server_cfg.get("headers"),
+                timeout=server_cfg.get("timeout"),
+            )
         else:
-            read_stream, write_stream = transport
+            command = str(server_cfg["command"])
+            args = server_cfg.get("args", [])
+            transport_label = f'stdio "{command} {" ".join(map(str, args))}"'
+            kwargs = {
+                "command": command,
+                "args": args,
+                "env": server_cfg.get("env"),
+                "cwd": server_cfg.get("cwd"),
+            }
+            stdio_params = _call_with_supported_kwargs(stdio_params_cls, **kwargs)
+            transport_cm = stdio_client(stdio_params)
 
-        async with session_cls(read_stream, write_stream) as session:
-            await session.initialize()
-            yield session
+        async with transport_cm as transport:
+            if isinstance(transport, tuple):
+                read_stream, write_stream = transport[0], transport[1]
+            else:
+                read_stream, write_stream = transport
+
+            async with session_cls(read_stream, write_stream) as session:
+                await session.initialize()
+                yield session
+    except Exception as exc:
+        details = _flatten_exception_messages(exc)
+        hint = details[0] if details else str(exc) or type(exc).__name__
+        raise RuntimeError(
+            f'Failed to connect to server "{server_name}" via {transport_label}: {hint}'
+        ) from exc
 
 
 def _get_server_entry(config: dict[str, Any], server_name: str) -> dict[str, Any]:
@@ -438,7 +473,55 @@ async def call_tool(
     }
 
 
+async def _start_all_servers(config_path: str | None = None) -> dict[str, Any]:
+    """Connect to every configured downstream server once at startup."""
+    config = _load_config(config_path)
+    started: list[dict[str, Any]] = []
+
+    for server_name in sorted(config["mcpServers"].keys(), key=str.lower):
+        server_cfg = _normalize_server_config(server_name, config["mcpServers"][server_name])
+        async with _open_client(server_name, server_cfg) as session:
+            response = await session.list_tools()
+        tools = getattr(response, "tools", response)
+        tool_count = len(list(tools))
+        started.append({"name": server_name, "tool_count": tool_count})
+        print(f'Started downstream server "{server_name}" ({tool_count} tools)')
+
+    return {
+        "config_path": config["_resolved_config_path"],
+        "started": started,
+        "count": len(started),
+    }
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run MCP Roundabout and optionally start all downstream servers on boot."
+    )
+    parser.add_argument(
+        "--start-all-servers",
+        action="store_true",
+        help="Connect to every configured downstream server before starting MCP Roundabout.",
+    )
+    parser.add_argument(
+        "--config-path",
+        default=None,
+        help="Path to mcp_servers.json (overrides autodetection for startup checks).",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = _parse_args()
+    if args.config_path:
+        os.environ["MCP_CONFIG_PATH"] = os.path.abspath(os.path.expanduser(args.config_path))
+    if args.start_all_servers:
+        summary = asyncio.run(_start_all_servers(config_path=args.config_path))
+        print(
+            f'Started {summary["count"]} downstream server(s) '
+            f'from {summary["config_path"]}'
+        )
+
     print(f"Meta MCP server: http://{MCP_HOST}:{MCP_PORT}/mcp")
     print(f"Server name:     {MCP_SERVER_NAME}")
     mcp.run(transport="streamable-http")

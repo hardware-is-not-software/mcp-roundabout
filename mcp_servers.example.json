@@ -1,8 +1,19 @@
 {
   "mcpServers": {
-    "taskman-mcp": {
-      "type": "http",
-      "url": "http://localhost:5051/mcp"
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "sqlite": {
+      "command": "uvx",
+      "args": ["mcp-server-sqlite", "--db-path", "test.db"]
+    },
+    "docker-example": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "mcp-server:latest"]
+    },
+    "deepwiki": {
+      "url": "https://mcp.deepwiki.com/mcp"
     }
   }
 }
