@@ -2,9 +2,13 @@
 
 `mcp-roundabout` is a single MCP server that routes tool discovery and tool calls to other MCP servers defined in `mcp_servers.json`.
 
-![MCP Roundabout Sequence](mcp-roundabout-sequence.png)
+![MCP Roundabout](mcp-roundabout.png)
 
-Diagram: one `mcp-roundabout` endpoint routes discovery (`list_servers`, `tool_search_*`, `describe_tool`) and execution (`call_tool`) to downstream MCP servers, then stores each response under `mcp_results/` and returns only the result file path.
+## How MCP Roundabout Works
+
+`mcp-roundabout` exposes one MCP endpoint and acts as a router for downstream MCP servers defined in `mcp_servers.json`.
+
+In a typical request, the client discovers tools (`list_servers`, `tool_search_*`, `describe_tool`), executes with `call_tool`, and receives a file path to a persisted result in `mcp_results/` instead of the full payload inline.
 
 ## Context and Token Impact
 
@@ -20,6 +24,8 @@ As you add more MCP integrations (GitHub, databases, browser automation, and oth
 ### Dynamic Context Discovery
 
 `mcp-roundabout` uses dynamic context discovery instead of static preloading. Rather than injecting every tool definition up front, the agent discovers candidate tools first, then expands only the ones relevant to the current task.
+
+![MCP Roundabout Sequence](mcp-roundabout-sequence.png)
 
 ## What It Does
 
