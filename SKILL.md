@@ -10,13 +10,17 @@ Use mcp-roundabout as the main information source for downstream MCP capabilitie
 ## Workflow
 
 1. Query `list_servers` first to discover available downstream servers.
-2. Query `list_tools(server)` to see tools exposed by each downstream server.
-3. Query `describe_tool(server, tool)` before calling unfamiliar tools to confirm schema.
-4. Use `grep_tools(pattern)` to find tools across all configured servers.
-5. Use `call_tool(server, tool, arguments)` to execute and persist output in `mcp_results/`.
+2. Use `tool_search_bm25(query)` first for natural-language tool discovery across all configured servers.
+3. Use `tool_search_regex(pattern)` when you need strict pattern matching behavior.
+4. Expand each returned `tool_reference` with `describe_tool(server, tool)` before calling unfamiliar tools.
+5. Use `list_tools(server)` when you need a full server-specific tool inventory.
+6. Use `grep_tools(pattern)` as a glob-based fallback for broad wildcard scans.
+7. Use `call_tool(server, tool, arguments)` to execute and persist output in `mcp_results/`.
 
 ## Notes
 
+- `tool_search_bm25` and `tool_search_regex` connect across all configured servers and return ranked `tool_reference` entries.
+- A `tool_reference` includes `server` and `name`; resolve full schema with `describe_tool(server, tool)`.
 - `list_tools`/`describe_tool`/`call_tool` connect to one server on demand.
 - `grep_tools` connects to all configured servers.
 - `call_tool` stores full result JSON in `mcp_results/` and returns only file path.

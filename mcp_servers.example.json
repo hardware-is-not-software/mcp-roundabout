@@ -1,19 +1,27 @@
 {
   "mcpServers": {
     "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"]
     },
     "sqlite": {
-      "command": "uvx",
-      "args": ["mcp-server-sqlite", "--db-path", "test.db"]
+        "command": "uvx",
+        "args": ["mcp-server-sqlite", "--db-path", "test.db"]
     },
     "docker-example": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "mcp-server:latest"]
+        "command": "docker",
+        "args": [
+            "run",
+            "--rm",
+            "-i",
+            "node:20-alpine",
+            "npx",
+            "-y",
+            "@modelcontextprotocol/server-memory"
+        ]
     },
     "deepwiki": {
-      "url": "https://mcp.deepwiki.com/mcp"
+        "url": "https://mcp.deepwiki.com/mcp"
     }
   }
 }

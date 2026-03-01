@@ -8,6 +8,8 @@ import asyncio
 import json
 import os
 import fnmatch
+import math
+import re
 import importlib
 import inspect
 from datetime import datetime, timezone
@@ -175,6 +177,33 @@ def _tool_to_dict(tool: Any, include_description: bool = True) -> dict[str, Any]
     return item
 
 
+def _tokenize_text(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9_]+", (text or "").lower())
+
+
+def _tool_reference(
+    *,
+    server: str,
+    tool: Any,
+    score: float | None = None,
+) -> dict[str, Any]:
+    name = getattr(tool, "name", None) or ""
+    description = getattr(tool, "description", None)
+    reference: dict[str, Any] = {
+        "type": "tool_reference",
+        "server": server,
+        "name": name,
+        "description": description,
+        "expand_with": {
+            "tool": "describe_tool",
+            "arguments": {"server": server, "tool": name},
+        },
+    }
+    if score is not None:
+        reference["score"] = round(float(score), 6)
+    return reference
+
+
 def _to_jsonable(value: Any) -> Any:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -210,6 +239,30 @@ def _flatten_exception_messages(exc: BaseException) -> list[str]:
     visit(exc)
     # Keep order stable while deduplicating.
     return list(dict.fromkeys(messages))
+
+
+async def _list_allowed_tools_for_server(
+    config: dict[str, Any],
+    server_name: str,
+) -> list[Any]:
+    server_cfg = _normalize_server_config(server_name, config["mcpServers"][server_name])
+    async with _open_client(server_name, server_cfg) as session:
+        response = await session.list_tools()
+    tools = getattr(response, "tools", response)
+    return [
+        item
+        for item in tools
+        if _is_tool_allowed(getattr(item, "name", ""), server_cfg)
+    ]
+
+
+async def _list_all_allowed_tools(config: dict[str, Any]) -> list[tuple[str, Any]]:
+    rows: list[tuple[str, Any]] = []
+    for server_name in sorted(config["mcpServers"].keys(), key=str.lower):
+        tools = await _list_allowed_tools_for_server(config, server_name)
+        for tool in tools:
+            rows.append((server_name, tool))
+    return rows
 
 
 def _store_call_result(
@@ -432,6 +485,141 @@ async def grep_tools(
         "config_path": config["_resolved_config_path"],
         "matches": matches,
         "count": len(matches),
+    }
+
+
+@mcp.tool()
+async def tool_search_regex(
+    pattern: str,
+    max_results: int = 5,
+    search_descriptions: bool = True,
+    config_path: str | None = None,
+) -> dict[str, Any]:
+    """Search downstream tools with a regex pattern and return tool references."""
+    if not pattern or not pattern.strip():
+        raise ValueError("pattern is required")
+    config = _load_config(config_path)
+    regex = re.compile(pattern.strip(), re.IGNORECASE)
+    limit = max(3, min(5, int(max_results)))
+    ranked: list[tuple[float, dict[str, Any]]] = []
+
+    for server_name, item in await _list_all_allowed_tools(config):
+        tool_name = getattr(item, "name", "") or ""
+        description = getattr(item, "description", None) or ""
+        text = f"{tool_name}\n{description}" if search_descriptions else tool_name
+        match = regex.search(text)
+        if not match:
+            continue
+        # Earlier match positions get a slightly better score.
+        score = 1.0 / (1.0 + float(match.start()))
+        ranked.append((score, _tool_reference(server=server_name, tool=item, score=score)))
+
+    ranked.sort(
+        key=lambda entry: (
+            -entry[0],
+            str(entry[1]["server"]).lower(),
+            str(entry[1]["name"]).lower(),
+        )
+    )
+    references = [entry[1] for entry in ranked[:limit]]
+    return {
+        "search_variant": "regex",
+        "search_pattern": pattern.strip(),
+        "config_path": config["_resolved_config_path"],
+        "tool_references": references,
+        "count": len(references),
+    }
+
+
+@mcp.tool()
+async def tool_search_bm25(
+    query: str,
+    max_results: int = 5,
+    config_path: str | None = None,
+) -> dict[str, Any]:
+    """Search downstream tools with BM25-style ranking and return tool references."""
+    if not query or not query.strip():
+        raise ValueError("query is required")
+
+    config = _load_config(config_path)
+    rows = await _list_all_allowed_tools(config)
+    tokens = _tokenize_text(query)
+    if not tokens:
+        raise ValueError("query must contain at least one searchable token")
+
+    documents: list[dict[str, Any]] = []
+    for server_name, item in rows:
+        name = getattr(item, "name", "") or ""
+        description = getattr(item, "description", None) or ""
+        text = f"{name} {description}"
+        doc_tokens = _tokenize_text(text)
+        if not doc_tokens:
+            continue
+        tf: dict[str, int] = {}
+        for token in doc_tokens:
+            tf[token] = tf.get(token, 0) + 1
+        documents.append(
+            {
+                "server": server_name,
+                "tool": item,
+                "length": len(doc_tokens),
+                "tf": tf,
+            }
+        )
+
+    if not documents:
+        return {
+            "search_variant": "bm25",
+            "query": query.strip(),
+            "config_path": config["_resolved_config_path"],
+            "tool_references": [],
+            "count": 0,
+        }
+
+    df: dict[str, int] = {}
+    for token in set(tokens):
+        df[token] = sum(1 for doc in documents if token in doc["tf"])
+
+    n_docs = len(documents)
+    avgdl = sum(doc["length"] for doc in documents) / float(n_docs)
+    k1 = 1.2
+    b = 0.75
+    limit = max(3, min(5, int(max_results)))
+    ranked: list[tuple[float, dict[str, Any]]] = []
+
+    for doc in documents:
+        score = 0.0
+        length = float(doc["length"])
+        for token in set(tokens):
+            freq = float(doc["tf"].get(token, 0))
+            if freq <= 0.0:
+                continue
+            idf = math.log(1.0 + ((n_docs - df[token] + 0.5) / (df[token] + 0.5)))
+            denom = freq + k1 * (1.0 - b + b * (length / avgdl))
+            score += idf * ((freq * (k1 + 1.0)) / denom)
+
+        if score > 0.0:
+            ranked.append(
+                (
+                    score,
+                    _tool_reference(server=doc["server"], tool=doc["tool"], score=score),
+                )
+            )
+
+    ranked.sort(
+        key=lambda entry: (
+            -entry[0],
+            str(entry[1]["server"]).lower(),
+            str(entry[1]["name"]).lower(),
+        )
+    )
+    references = [entry[1] for entry in ranked[:limit]]
+    return {
+        "search_variant": "bm25",
+        "query": query.strip(),
+        "config_path": config["_resolved_config_path"],
+        "tool_references": references,
+        "count": len(references),
     }
 
 

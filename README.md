@@ -143,7 +143,54 @@ Example MCP client config pointing to this server:
 - `list_tools(server, with_descriptions?, config_path?)`
 - `describe_tool(server, tool, config_path?)`
 - `grep_tools(pattern, with_descriptions?, config_path?)`
+- `tool_search_regex(pattern, max_results?, search_descriptions?, config_path?)`
+- `tool_search_bm25(query, max_results?, config_path?)`
 - `call_tool(server, tool, arguments?, config_path?)`
+
+`tool_search_*` tools return `tool_reference` records (3-5 results) with:
+
+- `server`
+- `name`
+- `description`
+- `expand_with: { tool: "describe_tool", arguments: { server, tool } }`
+
+This lets an upstream LLM client keep most tool definitions deferred and expand only relevant tools.
+
+## Tool Search Pattern
+
+Include one search tool and let your client expand additional tool definitions from returned `tool_reference` entries.
+
+Regex variant:
+
+```json
+{
+  "name": "tool_search_regex",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "pattern": { "type": "string" }
+    },
+    "required": ["pattern"]
+  }
+}
+```
+
+BM25 variant:
+
+```json
+{
+  "name": "tool_search_bm25",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": { "type": "string" }
+    },
+    "required": ["query"]
+  }
+}
+```
+
+Tool visibility/loading behavior is controlled by your MCP client runtime/config, not by `mcp-roundabout`'s downstream `mcp_servers.json`.
 
 ## Result Storage
 
