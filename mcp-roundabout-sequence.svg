@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">MCP Roundabout sequence diagram</title>
+  <desc id="desc">User asks an AI client to use mcp-roundabout for discovery and execution against downstream MCP servers.</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #f7f8fb; }
+      .title { font: 700 36px 'SF Pro Display', 'Segoe UI', sans-serif; fill: #121826; }
+      .subtitle { font: 500 18px 'SF Mono', 'Menlo', monospace; fill: #485063; }
+      .laneBoxUser { fill: #f5ebff; stroke: #ba7be4; stroke-width: 2; }
+      .laneBoxAI { fill: #e9faf7; stroke: #2db9aa; stroke-width: 2; }
+      .laneBoxMeta { fill: #fff4e8; stroke: #d58a3a; stroke-width: 2; }
+      .laneBoxDown { fill: #ecf8ff; stroke: #2aa8d7; stroke-width: 2; }
+      .laneLabel { font: 700 26px 'SF Pro Display', 'Segoe UI', sans-serif; fill: #111827; }
+      .laneLine { stroke: #252a34; stroke-width: 2; }
+      .sectionInit { fill: #dff5df; }
+      .sectionLoop { fill: #ecebfa; }
+      .sectionStorage { fill: #fff8dd; }
+      .sectionStroke { stroke: #c8cfe0; stroke-width: 1.2; }
+      .sectionLabel { font: 700 22px 'SF Pro Display', 'Segoe UI', sans-serif; fill: #1f2937; }
+      .note { font: 600 20px 'SF Mono', 'Menlo', monospace; fill: #172033; }
+      .small { font: 500 16px 'SF Mono', 'Menlo', monospace; fill: #243247; }
+      .msg { font: 600 17px 'SF Mono', 'Menlo', monospace; fill: #111827; }
+      .return { font: 600 16px 'SF Mono', 'Menlo', monospace; fill: #334155; }
+      .num { fill: #20243a; stroke: #f5f7ff; stroke-width: 2; }
+      .numText { font: 700 16px 'SF Mono', 'Menlo', monospace; fill: #ffffff; text-anchor: middle; dominant-baseline: middle; }
+      .badge { fill: #fff6bf; stroke: #e1bf00; stroke-width: 2; rx: 8; }
+      .badgeText { font: 700 20px 'SF Pro Display', 'Segoe UI', sans-serif; fill: #222; }
+    </style>
+
+    <marker id="arrow" markerWidth="14" markerHeight="10" refX="11" refY="5" orient="auto">
+      <polygon points="0,0 14,5 0,10" fill="#1f2735" />
+    </marker>
+    <marker id="arrowReturn" markerWidth="14" markerHeight="10" refX="11" refY="5" orient="auto">
+      <polygon points="0,0 14,5 0,10" fill="#43516b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1040" />
+
+  <text class="title" x="800" y="62" text-anchor="middle">MCP Roundabout Tool Flow</text>
+  <text class="subtitle" x="800" y="94" text-anchor="middle">Discovery and execution routed through one mcp-roundabout endpoint</text>
+
+  <rect class="laneBoxUser" x="90" y="120" width="240" height="74" rx="10" />
+  <rect class="laneBoxAI" x="470" y="120" width="280" height="74" rx="10" />
+  <rect class="laneBoxMeta" x="930" y="120" width="300" height="74" rx="10" />
+  <rect class="laneBoxDown" x="1320" y="120" width="220" height="74" rx="10" />
+
+  <text class="laneLabel" x="210" y="168" text-anchor="middle">User</text>
+  <text class="laneLabel" x="610" y="168" text-anchor="middle">AI Client</text>
+  <text class="laneLabel" x="1080" y="168" text-anchor="middle">mcp-roundabout</text>
+  <text class="laneLabel" x="1430" y="168" text-anchor="middle">MCP Servers</text>
+
+  <line class="laneLine" x1="210" y1="194" x2="210" y2="990" />
+  <line class="laneLine" x1="610" y1="194" x2="610" y2="990" />
+  <line class="laneLine" x1="1080" y1="194" x2="1080" y2="990" />
+  <line class="laneLine" x1="1430" y1="194" x2="1430" y2="990" />
+
+  <rect class="sectionInit sectionStroke" x="120" y="220" width="1040" height="108" rx="10" />
+  <text class="sectionLabel" x="145" y="258">Initialization</text>
+  <text class="small" x="145" y="290">Loads mcp_servers.json (MCP_CONFIG_PATH or default paths), validates command/url targets.</text>
+
+  <rect class="sectionLoop sectionStroke" x="120" y="350" width="1420" height="445" rx="10" />
+  <text class="sectionLabel" x="145" y="377">Dynamic Discovery + Execution Loop</text>
+
+  <rect class="sectionStorage sectionStroke" x="120" y="810" width="1420" height="160" rx="10" />
+  <text class="sectionLabel" x="145" y="843">Result Storage</text>
+  <text class="small" x="145" y="868">call_tool writes mcp_results/&lt;timestamp&gt;_&lt;server&gt;_&lt;tool&gt;_&lt;id&gt;.json</text>
+
+  <rect class="badge" x="145" y="410" width="300" height="52" />
+  <text class="badgeText" x="295" y="444" text-anchor="middle">Step 1: Discovery</text>
+  <rect class="badge" x="145" y="535" width="320" height="52" />
+  <text class="badgeText" x="305" y="569" text-anchor="middle">Step 2: Inspection</text>
+  <rect class="badge" x="145" y="660" width="320" height="52" />
+  <text class="badgeText" x="305" y="694" text-anchor="middle">Step 3: Execution</text>
+
+  <line x1="210" y1="324" x2="610" y2="324" stroke="#1f2735" stroke-width="2.6" marker-end="url(#arrow)" />
+  <text class="msg" x="410" y="313" text-anchor="middle">"Use mcp-roundabout tools for this task"</text>
+  <circle class="num" cx="210" cy="324" r="14" /><text class="numText" x="210" y="324">1</text>
+
+  <line x1="610" y1="430" x2="1080" y2="430" stroke="#1f2735" stroke-width="2.6" marker-end="url(#arrow)" />
+  <text class="msg" x="845" y="418" text-anchor="middle">list_servers(), tool_search_bm25(query)</text>
+  <circle class="num" cx="610" cy="430" r="14" /><text class="numText" x="610" y="430">2</text>
+
+  <line x1="1080" y1="485" x2="610" y2="485" stroke="#43516b" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#arrowReturn)" />
+  <text class="return" x="845" y="473" text-anchor="middle">tool_reference list (server, name, score, expand_with)</text>
+  <circle class="num" cx="1080" cy="485" r="14" /><text class="numText" x="1080" y="485">3</text>
+
+  <line x1="610" y1="555" x2="1080" y2="555" stroke="#1f2735" stroke-width="2.6" marker-end="url(#arrow)" />
+  <text class="msg" x="845" y="543" text-anchor="middle">describe_tool(server, tool)  /  list_tools(server)</text>
+  <circle class="num" cx="610" cy="555" r="14" /><text class="numText" x="610" y="555">4</text>
+
+  <line x1="1080" y1="610" x2="610" y2="610" stroke="#43516b" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#arrowReturn)" />
+  <text class="return" x="845" y="598" text-anchor="middle">inputSchema + description (allowedTools/disabledTools applied)</text>
+  <circle class="num" cx="1080" cy="610" r="14" /><text class="numText" x="1080" y="610">5</text>
+
+  <line x1="610" y1="680" x2="1080" y2="680" stroke="#1f2735" stroke-width="2.6" marker-end="url(#arrow)" />
+  <text class="msg" x="845" y="668" text-anchor="middle">call_tool(server, tool, arguments)</text>
+  <circle class="num" cx="610" cy="680" r="14" /><text class="numText" x="610" y="680">6</text>
+
+  <line x1="1080" y1="700" x2="1430" y2="700" stroke="#1f2735" stroke-width="2.6" marker-end="url(#arrow)" />
+  <text class="msg" x="1255" y="688" text-anchor="middle">run downstream tool (stdio or http)</text>
+  <circle class="num" cx="1080" cy="700" r="14" /><text class="numText" x="1080" y="700">7</text>
+
+  <line x1="1430" y1="745" x2="1080" y2="745" stroke="#43516b" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#arrowReturn)" />
+  <text class="return" x="1255" y="733" text-anchor="middle">tool result payload</text>
+  <circle class="num" cx="1430" cy="745" r="14" /><text class="numText" x="1430" y="745">8</text>
+
+  <line x1="1080" y1="903" x2="610" y2="903" stroke="#43516b" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#arrowReturn)" />
+  <text class="return" x="845" y="892" text-anchor="middle">{ "file": "/absolute/path/to/mcp_results/...json" }</text>
+  <circle class="num" cx="1080" cy="903" r="14" /><text class="numText" x="1080" y="903">9</text>
+
+  <line x1="610" y1="948" x2="210" y2="948" stroke="#1f2735" stroke-width="2.6" marker-end="url(#arrow)" />
+  <text class="msg" x="465" y="937" text-anchor="middle">Final answer (optionally parse file with rg/jq/awk)</text>
+  <circle class="num" cx="610" cy="948" r="14" /><text class="numText" x="610" y="948">10</text>
+</svg>
